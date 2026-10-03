@@ -1,16 +1,16 @@
 # Router Rumble
 
-**Your Wi-Fi dies in the bedroom. Can an optimizer find a better place for the router?**
+Where should you put a Wi-Fi router when the signal barely reaches the bedroom?
 
-A tiny Python experiment pits gradient descent against evolution inside a simulated home. Watch the router move, the signal map change, and one search get stuck while the other explores across the walls.
+Router Rumble explores that question with a small Python simulation. Gradient descent and an evolutionary algorithm search the same home, starting from the same router position. The animation shows how the signal changes as they search, including the point where gradient descent settles while the population finds a better position across the wall.
 
 ![Router Rumble: local search versus evolution](assets/race.gif)
 
-**Same start. Same 1,200 signal evaluations. Different search strategies.**
+Both methods get 1,200 signal evaluations. The replay uses their recorded positions and the signal values calculated by Python.
 
-## Run the race
+## Run it yourself
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run:
 
 ```sh
 git clone https://github.com/austin-starks/router-rumble.git
@@ -18,21 +18,21 @@ cd router-rumble
 uv run run_demo.py
 ```
 
-That runs both optimizers, checks 20 evolutionary seeds, and opens a browser replay. Drag the timeline to inspect any moment. No server, API key, or GPU.
+The script runs both optimizers, checks 20 evolutionary seeds, and opens the replay in your browser. You can drag the timeline to inspect any moment. It runs locally without a server, API key, or GPU.
 
-Try a different race:
+You can change the seed and give both methods a larger budget:
 
 ```sh
 uv run run_demo.py --seed 12 --budget 2400
 ```
 
-Already have Python and NumPy? `python run_demo.py` works too. The committed `demo.html` also opens directly as a silent replay of the default experiment.
+If you already have Python and NumPy installed, `python run_demo.py` works too. You can also open the committed `demo.html` directly to watch a silent replay of the default run.
 
-## The payoff
+## What happens in the default run
 
-In the stronger-signal scenario, the starting router serves **100 of 560 sampled locations (18%)**. Gradient descent ends at **28% coverage**. Evolution, with seed 7, ends at **203 of 560 locations (36%)**.
+With the stronger signal target, the starting router serves 100 of the 560 sampled locations, or about 18%. Gradient descent finishes at 28% coverage. Evolution, using seed 7, finishes at 203 locations, or about 36%.
 
-That is simulated signal coverage, **not measured internet speed**. The optimizers maximize a smooth service score; coverage is a separate threshold metric.
+Coverage means that a sampled location meets the signal target. It does not measure internet speed. Both optimizers maximize a smooth service score, which is related to coverage but is a different metric.
 
 | Scenario | Start score | Gradient descent | Evolution | Seeds beating GD |
 |---|---:|---:|---:|---:|
@@ -40,40 +40,49 @@ That is simulated signal coverage, **not measured internet speed**. The optimize
 | Partitioned home | 37.1 | 63.6 | 67.1 | 20 / 20 |
 | Stronger signal target | 18.1 | 28.0 | 35.9 | 20 / 20 |
 
-The open-room control matters: both methods reach the same rounded score. This experiment shows a failure mode of local search, not a universal winner. Seed 7 was chosen before running; the audit includes seeds 0–19. A win means a score advantage greater than 0.1.
+In the open room, both methods reach the same rounded score. The difference appears when walls and the signal target create competing good positions. These results show how this particular local search can get stuck; they do not establish that evolution is always better.
 
-## How it works
+Seed 7 was chosen before running the experiment. The audit includes seeds 0 through 19, and counts a win when evolution's final service score exceeds gradient descent's by more than 0.1 points.
 
-- **Yellow:** finite-difference gradient descent. Probe four nearby positions, follow the slope, and backtrack when a step makes things worse.
-- **Pink:** 32 candidates. Keep the best eight, mutate 24 offspring, and repeat. No crossover.
-- **The house:** 14 × 10 metres, 560 sampled receivers, four walls with declared 7 or 9 dB penalties. Furniture is decoration.
-- **The budget:** all search calls count. Recording diagnostics and the independent reference grid are outside both budgets. Equal evaluations do not mean equal runtime; analytic gradients could be cheaper.
+## How the search works
 
-Distance reduces signal as `-40 - 24*log10(max(distance, 1))` dBm. Wall-crossing masks are softened over 0.18 m. The score averages `sigmoid((RSSI-target)/3) × 100`; coverage counts receivers at or above the target. The two wall scenarios share geometry and change the target from −67 to −57 dBm.
+The yellow router uses finite-difference gradient descent. It probes four nearby positions to estimate the slope, takes a step, and backtracks if the score gets worse. The pink population starts with 32 candidates, keeps the best eight, and creates 24 mutated offspring for the next generation. It does not use crossover.
 
-Both methods include the exact start `(1, 1)`; evolution also starts nearby candidates. GD uses a learning rate of 30 and 0.03 m finite differences. Evolution's mutation spread starts at 2.7 m, shrinks 4.5% each generation, and bottoms out at 0.18 m.
+Both searches include the exact starting position `(1, 1)`. Evolution also initializes nearby candidates. Gradient descent uses a learning rate of 30 and finite differences spaced 0.03 m apart. Evolution's mutation spread starts at 2.7 m, shrinks by 4.5% per generation, and stops shrinking at 0.18 m.
 
-## Change something meaningful
+Every search call counts toward the budget, including gradient probes, trial steps, and population evaluations. Recording diagnostics and the independent reference grid are outside the budget for both methods. Equal evaluation counts do not imply equal runtime, and analytic gradients could make gradient descent cheaper.
 
-Edit `ROOMS` in [experiment.py](experiment.py): move a wall, alter its attenuation, or change the signal target. Then rerun the demo. Every signal cell and optimizer position in the animation comes from the Python results.
+## How the signal model works
 
-| File | Purpose |
+The simulated home measures 14 × 10 metres and contains 560 sampled receivers. Four walls impose declared penalties of 7 or 9 dB. The furniture in the animation is decorative and does not affect the calculation.
+
+Distance reduces signal according to `-40 - 24*log10(max(distance, 1))` dBm. Wall-crossing masks are softened over 0.18 m so the optimizer has a smooth objective. The service score averages `sigmoid((RSSI-target)/3) × 100` across receivers, while coverage counts receivers at or above the target.
+
+The two wall scenarios use the same geometry. The stronger-signal scenario changes the target from −67 to −57 dBm.
+
+## Change the experiment
+
+Edit `ROOMS` in [experiment.py](experiment.py) to move a wall, change its attenuation, or adjust the signal target. Rerun the demo to see how those changes affect the searches. Every signal cell and router position in the replay comes from the new Python results.
+
+| File | What it does |
 |---|---|
-| `experiment.py` | Signal model, both optimizers, seeded audit |
-| `run_demo.py` | One-command experiment and replay |
-| `build_preview.py` | Bundle recorded positions and signal maps |
-| `visual.js` | Shared animation for the replay and vertical video |
-| `results/results.json` | Reproducible default run |
-| `test_experiment.py` | Budgets, bounds, attenuation, reproducibility |
+| `experiment.py` | Defines the signal model, runs both optimizers, and audits the seeds. |
+| `run_demo.py` | Runs the experiment and opens the replay. |
+| `build_preview.py` | Bundles the recorded positions and signal maps. |
+| `visual.js` | Draws the browser replay and the vertical video. |
+| `results/results.json` | Stores the reproducible default run. |
+| `test_experiment.py` | Checks budgets, bounds, attenuation, and reproducibility. |
+
+Run the tests with:
 
 ```sh
 uv run --with numpy python -m unittest -v
 ```
 
-## What this model leaves out
+## Limits and references
 
-This is an educational approximation of router placement, not an RF survey or a calibrated building model. It omits interference, reflections, floors, antenna patterns, furniture attenuation, and channel congestion. The 1 m distance floor introduces a small nonsmooth region.
+This is an educational approximation of router placement rather than an RF survey or a calibrated building model. It omits interference, reflections, floors, antenna patterns, furniture attenuation, and channel congestion. The 1 m distance floor introduces a small nonsmooth region.
 
 For real indoor propagation models, see [ITU-R P.1238](https://www.itu.int/rec/R-REC-P.1238) and [ns-3's building models](https://www.nsnam.org/docs/models/html/buildings-design.html).
 
-Inspired by [ModularMind8's gradient-descent versus evolution animation](https://www.reddit.com/r/deeplearning/comments/1wvuu24/gradient_descent_vs_evolution_on_three_loss/). Code and graphics are newly authored. [MIT license](LICENSE).
+The visual comparison was inspired by [ModularMind8's gradient-descent versus evolution animation](https://www.reddit.com/r/deeplearning/comments/1wvuu24/gradient_descent_vs_evolution_on_three_loss/). The code and graphics in this repository were newly authored and are available under the [MIT license](LICENSE).
