@@ -66,8 +66,8 @@ class Room:
 
 WALLS = [(4.5, 0, 4.5, 7.5, 9), (9, 2.5, 9, 10, 9),
          (4.5, 5, 9, 5, 7), (0, 7.5, 4.5, 7.5, 7)]
-ROOMS = [Room("Open room", [], -67), Room("Office walls", WALLS, -67),
-         Room("Stricter signal target", WALLS, -57)]
+ROOMS = [Room("Open room", [], -67), Room("Partitioned home", WALLS, -67),
+         Room("Stronger signal target", WALLS, -57)]
 
 
 def clip(position: np.ndarray) -> np.ndarray:
@@ -139,12 +139,12 @@ def evolution(room: Room, seed: int, budget: int = BUDGET) -> list[dict]:
     return history
 
 
-def run(output: Path, seeds: int) -> None:
+def run(output: Path, seeds: int, featured_seed: int = FEATURED_SEED, budget: int = BUDGET) -> None:
     rounds = []
     for room in ROOMS:
-        gd = gradient_descent(room)
-        es = evolution(room, FEATURED_SEED)
-        repeated = [evolution(room, seed)[-1] for seed in range(seeds)]
+        gd = gradient_descent(room, budget)
+        es = evolution(room, featured_seed, budget)
+        repeated = [evolution(room, seed, budget)[-1] for seed in range(seeds)]
         xx, yy = np.meshgrid(np.linspace(0.3, 13.7, 57), np.linspace(0.3, 9.7, 41))
         grid = np.column_stack([xx.ravel(), yy.ravel()])
         scores = 100 * (1 - room.loss(grid))
@@ -159,14 +159,18 @@ def run(output: Path, seeds: int) -> None:
         print(f"{room.name}: start {room.metrics(START)['score']:.1f}, GD {gd[-1]['score']:.1f}, "
               f"evolution {es[-1]['score']:.1f}; evolution wins {rounds[-1]['audit']['evolution_wins']}/{seeds}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps({"seed": FEATURED_SEED, "budget": BUDGET, "rounds": rounds}, indent=2))
+    output.write_text(json.dumps({"seed": featured_seed, "budget": budget, "rounds": rounds}, indent=2))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("results/results.json"))
     parser.add_argument("--seeds", type=int, default=20)
+    parser.add_argument("--seed", type=int, default=FEATURED_SEED)
+    parser.add_argument("--budget", type=int, default=BUDGET)
     args = parser.parse_args()
     if args.seeds < 1:
         parser.error("--seeds must be positive")
-    run(args.output, args.seeds)
+    if args.seed < 0 or args.budget < 32:
+        parser.error("--seed must be nonnegative and --budget must be at least 32")
+    run(args.output, args.seeds, args.seed, args.budget)
