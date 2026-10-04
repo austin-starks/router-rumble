@@ -4,7 +4,7 @@ Where should you put a Wi-Fi router when the signal barely reaches the bedroom?
 
 Router Rumble explores that question with a small Python simulation. Gradient descent and an evolutionary algorithm search the same home, starting from the same router position. The animation shows how the signal changes as they search, including the point where gradient descent settles while the population finds a better position across the wall.
 
-![Router Rumble: local search versus evolution](assets/race-3d.gif)
+![Router Rumble: local search versus evolution](assets/router-races.gif)
 
 Both methods get 1,200 signal evaluations. The replay uses their recorded positions and the signal values calculated by Python. It interpolates between positions to make the motion smooth; those intermediate positions are not additional optimizer evaluations. The counters and signal maps use the recorded states.
 
