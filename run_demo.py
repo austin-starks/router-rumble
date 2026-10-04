@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["numpy>=2.0,<3"]
+# dependencies = ["numpy>=2.0,<3", "pymoo==0.6.1.5"]
 # ///
 """Run Router Rumble, bundle the replay, and open it in your browser."""
 import argparse

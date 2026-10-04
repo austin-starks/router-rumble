@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.problem import Problem
 
 BOUNDS = np.array([[0.3, 13.7], [0.3, 9.7]])
 START = np.array([1.0, 1.0])
@@ -118,38 +121,60 @@ def gradient_descent(room: Room, budget: int = BUDGET) -> list[dict]:
     return history
 
 
-def evolution(room: Room, seed: int, budget: int = BUDGET) -> list[dict]:
+class RouterProblem(Problem):
+    """One objective so NSGA-II and gradient descent optimize identical loss."""
+
+    def __init__(self, room: Room):
+        super().__init__(n_var=2, n_obj=1, xl=BOUNDS[:, 0], xu=BOUNDS[:, 1])
+        self.room = room
+
+    def _evaluate(self, positions, out, *args, **kwargs):
+        out["F"] = self.room.loss(positions)[:, None]
+
+
+def nsga_ii(room: Room, seed: int, budget: int = BUDGET) -> list[dict]:
+    if budget < 32:
+        raise ValueError("NSGA-II needs at least 32 evaluations for initialization")
     rng = np.random.default_rng(seed)
-    population = clip(START + rng.normal(0, 0.35, (32, 2)))
-    population[0] = START
-    evaluations = 1
-    best = START.copy()
-    best_loss = float(room.loss(best)[0])
-    history = [state(room, best, evaluations, population)]
-    generation = 0
-    while evaluations < budget:
-        count = min(len(population), budget - evaluations)
-        scored = population[:count]
-        losses = room.loss(scored)
-        evaluations += count
-        order = np.argsort(losses)
-        if losses[order[0]] < best_loss:
-            best, best_loss = scored[order[0]].copy(), float(losses[order[0]])
-        history.append(state(room, best, evaluations, scored))
-        survivors = scored[order[:min(8, count)]]
-        sigma = max(0.18, 2.7 * 0.955 ** generation)
-        parents = survivors[rng.integers(len(survivors), size=24)]
-        population = clip(np.vstack([survivors, parents + rng.normal(0, sigma, (24, 2))]))
-        generation += 1
-    return history
+    initial = rng.uniform(BOUNDS[:, 0], BOUNDS[:, 1], (32, 2))
+    initial[0] = START
+    problem = RouterProblem(room)
+    numpy_state, python_state = np.random.get_state(), random.getstate()
+    try:
+        algorithm = NSGA2(pop_size=32, sampling=initial, eliminate_duplicates=True)
+        algorithm.setup(problem, seed=seed, termination=("n_eval", budget), verbose=False)
+        best = START.copy()
+        best_loss = None
+        history = []
+        while algorithm.evaluator.n_eval < budget:
+            remaining = budget - algorithm.evaluator.n_eval
+            candidates = algorithm.ask()[:remaining]
+            if not len(candidates):
+                raise RuntimeError("NSGA-II produced no candidates before exhausting its budget")
+            algorithm.evaluator.eval(problem, candidates)
+            losses = candidates.get("F")[:, 0]
+            if best_loss is None:
+                best_loss = float(losses[0])
+                history.append(state(room, START, 1, initial[:1]))
+            winner = int(np.argmin(losses))
+            if losses[winner] < best_loss:
+                best, best_loss = candidates.get("X")[winner].copy(), float(losses[winner])
+            algorithm.tell(infills=candidates)
+            snapshot = state(room, best, algorithm.evaluator.n_eval, algorithm.pop.get("X"))
+            snapshot["generation"] = algorithm.n_iter - 1
+            history.append(snapshot)
+        return history
+    finally:
+        np.random.set_state(numpy_state)
+        random.setstate(python_state)
 
 
 def run(output: Path, seeds: int, featured_seed: int = FEATURED_SEED, budget: int = BUDGET) -> None:
     rounds = []
     for room in ROOMS:
         gd = gradient_descent(room, budget)
-        es = evolution(room, featured_seed, budget)
-        repeated = [evolution(room, seed, budget)[-1] for seed in range(seeds)]
+        es = nsga_ii(room, featured_seed, budget)
+        repeated = [nsga_ii(room, seed, budget)[-1] for seed in range(seeds)]
         xx, yy = np.meshgrid(np.linspace(0.3, 13.7, 57), np.linspace(0.3, 9.7, 41))
         grid = np.column_stack([xx.ravel(), yy.ravel()])
         scores = 100 * (1 - room.loss(grid))
@@ -165,7 +190,7 @@ def run(output: Path, seeds: int, featured_seed: int = FEATURED_SEED, budget: in
         print(f"{room.name}: start {room.metrics(START)['score']:.1f}, GD {gd[-1]['score']:.1f}, "
               f"evolution {es[-1]['score']:.1f}; evolution wins {rounds[-1]['audit']['evolution_wins']}/{seeds}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps({"seed": featured_seed, "budget": budget, "rounds": rounds}, indent=2))
+    output.write_text(json.dumps({"seed": featured_seed, "budget": budget, "algorithm": "pymoo.NSGA2", "pymoo_version": "0.6.1.5", "n_objectives": 1, "rounds": rounds}, indent=2))
 
 
 if __name__ == "__main__":

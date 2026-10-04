@@ -1,0 +1,7 @@
+# NSGA-II migration
+
+Use pymoo 0.6.1.5 NSGA2 with 32 individuals, binary tournament selection, simulated binary crossover (probability 0.9, eta 15), polynomial mutation (eta 20), and rank-and-crowding survival. Keep the existing single objective in each case. This exercises NSGA-II as a single-objective search; it does not demonstrate a Pareto trade-off.
+
+Both searches include the exact start at (1, 1). NSGA-II initializes the other 31 positions uniformly across the bounds, following its normal broad population initialization. Gradient descent has one starting position. This initialization advantage must be explicit in the README; including the shared point does not mean both searches have identical initial information. Seed 7 remains predeclared. Count every evaluated candidate exactly once; truncate the final offspring batch to the remaining budget. Use the library evaluator counter as the recorded count. Diagnostic metrics and the reference grid remain outside both budgets. Restore Python and NumPy random state after each library run.
+
+Regenerate all four cases and the 20-seed audit. Derive every displayed count, percentage and outcome from the new results rather than keeping the old 208 claim. Preserve one continuous coverage-count race for the short review, with a readable budget and a brief explanation of the plateau. Replace the README GIF with the exact new review and update prose and algorithm settings.

@@ -36,25 +36,26 @@ function arena(room,gd,es,budget){const g=geometry(room);for(const cell of g.cel
 function signalMap(room,state,x,y,w,color){const h=w*10/14,mp=p=>[x+p[0]/14*w,y+(10-p[1])/10*h];tile(x,y,w,h,'#152030');for(let iy=0;iy<20;iy++)for(let ix=0;ix<28;ix++){const s=state.signal[iy*28+ix],good=state.covered[iy*28+ix],p=clamp(Math.abs(s-room.target_dbm)/18);ctx.fillStyle=good?`rgb(${mix(51,95,p)},${mix(185,230,p)},${mix(133,176,p)})`:`rgb(${mix(78,118,p)},${mix(40,50,p)},${mix(61,74,p)})`;ctx.fillRect(x+ix/28*w,y+(19-iy)/20*h,w/28+.4,h/20+.4);}
  for(const [x1,y1,x2,y2] of room.walls)line([mp([x1,y1]),mp([x2,y2])],'#c6d1df',3);ctx.strokeStyle='#526174';ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);router(mp(state.position),color);return h;
 }
-const rounds=[{index:3,start:0,length:9,active:5.5,title:'The coverage-count experiment'}];
-function budgetAt(progress){const knots=[[0,1],[.2,65],[.4,193],[.65,257],[.8,833],[1,1200]];let i=0;while(i<knots.length-2&&progress>knots[i+1][0])i++;const [t0,a]=knots[i],[t1,b]=knots[i+1];return Math.min(data.budget,mix(a,b,clamp((progress-t0)/(t1-t0)))*data.budget/1200);}
+const rounds=[{index:3,start:0,length:12,active:8,title:'The coverage-count experiment'}];
+function budgetAt(progress){const knots=[[0,1],[.2,32],[.4,128],[.65,256],[.8,320],[1,1200]];let i=0;while(i<knots.length-2&&progress>knots[i+1][0])i++;const [t0,a]=knots[i],[t1,b]=knots[i+1];return Math.min(data.budget,mix(a,b,clamp((progress-t0)/(t1-t0)))*data.budget/1200);}
 function draw(time){const round=[...rounds].reverse().find(r=>time>=r.start)||rounds[0],room=data.rounds[round.index],progress=clamp((time-round.start)/round.active),budget=budgetAt(progress),gd=bracket(room.gd,budget),es=bracket(room.evolution,budget),done=progress>=1;ctx.fillStyle=C.bg;ctx.fillRect(0,0,1080,1920);
- const count=round.index===3,ending=time>=5.5;
- text(ending?'Same budget. Twice the coverage.':'Gradient descent gets stuck here.',64,298,44,C.ink,'left',700);
- text(ending?'100 → 208 locations covered.':'Can evolution find a better router spot?',64,350,ending?48:38,ending?C.green:C.muted,'left',ending?700:400);
+ const count=round.index===3,ending=done;
+ const initialCount=Math.round(room.start.coverage*5.6),finalCount=Math.round(room.evolution.at(-1).coverage*5.6),ratio=(finalCount/initialCount).toFixed(2);
+ text(ending?`Same budget. ${ratio}× the coverage.`:'Gradient descent gets stuck here.',64,298,44,C.ink,'left',700);
+ text(ending?`${initialCount} → ${finalCount} locations covered.`:'Can NSGA-II find a better router spot?',64,350,ending?48:38,ending?C.green:C.muted,'left',ending?700:400);
  const used=Math.floor(Math.min(gd.a.evaluations,es.a.evaluations)/200)*200;
  if(!ending)text(used?`Both tested ≥${used} positions · Budget: 1,200`:'Budget: 1,200 router-position tests each.',64,406,35,C.yellow,'left',700);
- text('GRADIENT DESCENT',64,460,31,C.yellow,'left',700);text('EVOLUTION · 32 CANDIDATES',532,460,28,C.pink,'left',700);
+ text('GRADIENT DESCENT',64,460,31,C.yellow,'left',700);text('NSGA-II · 32 CANDIDATES',532,460,28,C.pink,'left',700);
  text(count?`${Math.round(gd.a.coverage)}%`:(1-gd.a.score/100).toFixed(3),64,525,76,C.yellow,'left',700);
  text(count?`${Math.round(es.a.coverage)}%`:(1-es.a.score/100).toFixed(3),532,525,76,C.pink,'left',700);
  text(count?'covered':'loss',count?240:295,520,29,C.muted);text(count?'covered':'loss',count?710:763,520,29,C.muted);
  arena(room,gd,es,budget);const gp=geometry(room).project(gd.a.position);tile(gp[0]+28,gp[1]-65,300,43,C.bg);text('NO LOCAL SLOPE',gp[0]+38,gp[1]-32,30,C.yellow,'left',700);line([gp,[gp[0]+42,gp[1]-20]],C.yellow,2);
- text('HIGH LOSS',64,1057,27,'#dd9677','left',700);text('SIMULATION · PINK TRAIL = BEST SO FAR',490,1057,23,C.muted,'center');text('LOW LOSS',924,1057,27,'#76b9ff','right',700);
+ text('HIGH LOSS',64,1057,27,'#dd9677','left',700);text('SIMULATED WI-FI · PINK = BEST SO FAR',490,1057,23,C.muted,'center');text('LOW LOSS',924,1057,27,'#76b9ff','right',700);
 
 
 
- const verdict=count?(done?'MORE THAN DOUBLE THE COVERAGE':'Same coverage nearby → zero gradient'):(round.index===0?(done?'BOTH FIND THE CENTER':'No walls. Both can follow the slope.'):(done?'EVOLUTION FINDS LOWER LOSS':'Walls create competing good positions.'));
- text(verdict,490,1110,done?40:35,done?C.green:C.ink,'center',700);
+ const verdict=count?(done?'FLAT GRADIENT ≠ NO BETTER POSITION':'Same coverage nearby → zero gradient'):(round.index===0?(done?'BOTH FIND THE CENTER':'No walls. Both can follow the slope.'):(done?'EVOLUTION FINDS LOWER LOSS':'Walls create competing good positions.'));
+ text(verdict,490,1110,done?36:35,done?C.green:C.ink,'center',700);
  const mw=400,my=1170;signalMap(room,gd.a,64,my,mw,C.yellow);signalMap(room,es.a,532,my,mw,C.pink);
  text(count?`${Math.round(gd.a.coverage/100*560)} / 560 covered`:'Signal at the yellow router',64,1147,36,C.yellow,'left',700);
  text(count?`${Math.round(es.a.coverage/100*560)} / 560 covered`:'Signal at the pink router',532,1147,36,C.pink,'left',700);

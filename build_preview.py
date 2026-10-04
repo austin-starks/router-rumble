@@ -8,7 +8,7 @@ from experiment import ROOMS
 
 ROOT = Path(__file__).resolve().parent
 VIDEO = ROOT.parents[1] / 'Videos/tiktok/gradient-vs-evolution/edit'
-DURATION = 9
+DURATION = 12
 recorded = json.loads((ROOT / 'results/results.json').read_text())
 for room, result in zip(ROOMS, recorded['rounds']):
     for method in ('gd', 'evolution'):
