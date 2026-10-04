@@ -8,17 +8,20 @@ from experiment import ROOMS
 
 ROOT = Path(__file__).resolve().parent
 VIDEO = ROOT.parents[1] / 'Videos/tiktok/gradient-vs-evolution/edit'
-DURATION = 28
+DURATION = 8
 recorded = json.loads((ROOT / 'results/results.json').read_text())
 for room, result in zip(ROOMS, recorded['rounds']):
     for method in ('gd', 'evolution'):
         for state in result[method]:
-            state['signal'] = np.round(room.signal(np.array(state['position']))[0], 2).tolist()
+            signal = room.signal(np.array(state['position']))[0]
+            state['signal'] = np.round(signal, 2).tolist()
+            state['covered'] = (signal >= room.target).tolist()
+            assert sum(state['covered']) == round(state['coverage'] / 100 * 560)
 data = json.dumps(recorded, separators=(',', ':'))
 visual = (ROOT / 'visual.js').read_text()
 head = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Router Rumble</title>'
 style = 'html,body{margin:0;background:#05090e;color:#f4f6f8;font-family:Arial,sans-serif}#root{position:relative;width:1080px;height:1920px;overflow:hidden}canvas{display:block;width:1080px;height:1920px}'
-body = f'<div id="root" data-composition-id="wifi-race" data-start="0" data-width="1080" data-height="1920" data-duration="{DURATION}"><canvas id="world" width="1080" height="1920" aria-label="Three router-placement races on actual loss surfaces; yellow gradient descent and pink evolutionary population with linked signal maps"></canvas></div>'
+body = f'<div id="root" data-composition-id="wifi-race" data-start="0" data-width="1080" data-height="1920" data-duration="{DURATION}"><canvas id="world" width="1080" height="1920" aria-label="A router-placement race on its actual coverage-count loss surface; yellow gradient descent and pink evolutionary population with linked signal maps"></canvas></div>'
 shared = f'<script>window.WIFI_DATA={data};</script><script>{visual}</script>'
 video = head + '<script src="assets/gsap.min.js"></script>' + f'<style>{style}</style></head><body>{body}{shared}'
 video += f'''<audio id="soundtrack" class="clip" src="assets/router-rumble.wav" data-start="0" data-duration="{DURATION}" data-volume="1" data-track-index="5"></audio><script>
@@ -39,4 +42,4 @@ scrub.oninput=()=>{{time=Number(scrub.value);window.drawWifi(time);document.getE
 function tick(now){{if(playing&&last!==null){{time=(time+(now-last)/1000)%{DURATION};window.drawWifi(time);scrub.value=time;document.getElementById('time').textContent=time.toFixed(1)+' s';}}last=now;requestAnimationFrame(tick);}}requestAnimationFrame(tick);
 </script></body></html>'''
 (ROOT / 'demo.html').write_text(demo)
-print('Bundled three continuous 3D races with linked signal maps.')
+print('Bundled the coverage-count race with linked signal maps.')
