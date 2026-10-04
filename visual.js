@@ -44,7 +44,7 @@ function draw(time){const round=[...rounds].reverse().find(r=>time>=r.start)||ro
  text(ending?`Same budget. ${ratio}× the coverage.`:'Gradient descent gets stuck here.',64,298,44,C.ink,'left',700);
  text(ending?`${initialCount} → ${finalCount} locations covered.`:'Can NSGA-II find a better router spot?',64,350,ending?48:38,ending?C.green:C.muted,'left',ending?700:400);
  const used=Math.floor(Math.min(gd.a.evaluations,es.a.evaluations)/200)*200;
- if(!ending)text(used?`Both tested ≥${used} positions · Budget: 1,200`:'Budget: 1,200 router-position tests each.',64,406,35,C.yellow,'left',700);
+ if(!ending)text(used?`Both tested ≥${used} positions · Budget: ${data.budget.toLocaleString()}`:`Budget: ${data.budget.toLocaleString()} router-position tests each.`,64,406,35,C.yellow,'left',700);
  text('GRADIENT DESCENT',64,460,31,C.yellow,'left',700);text('NSGA-II · 32 CANDIDATES',532,460,28,C.pink,'left',700);
  text(count?`${Math.round(gd.a.coverage)}%`:(1-gd.a.score/100).toFixed(3),64,525,76,C.yellow,'left',700);
  text(count?`${Math.round(es.a.coverage)}%`:(1-es.a.score/100).toFixed(3),532,525,76,C.pink,'left',700);
