@@ -24,6 +24,15 @@ class ExperimentTests(unittest.TestCase):
                 for snapshot in history:
                     self.assertAlmostEqual(snapshot['score'], room.metrics(np.array(snapshot['position']))['score'])
 
+    def test_coverage_count_plateau_has_zero_local_gradient(self):
+        room = ROOMS[-1]
+        probes = np.array([START + [.03, 0], START - [.03, 0],
+                           START + [0, .03], START - [0, .03]])
+        self.assertTrue(np.all(room.loss(probes) == room.loss(START)[0]))
+        history = gradient_descent(room, 160)
+        self.assertTrue(all(np.array_equal(s['position'], START) for s in history))
+        self.assertGreater(evolution(room, 7, 1200)[-1]['coverage'], history[-1]['coverage'])
+
     def test_seed_reproducibility(self):
         self.assertEqual(evolution(ROOMS[1], 7, 100), evolution(ROOMS[1], 7, 100))
 

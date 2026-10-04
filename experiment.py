@@ -23,6 +23,7 @@ class Room:
     name: str
     walls: list[tuple[float, float, float, float, float]]
     target: float
+    coverage_only: bool = False
 
     def __post_init__(self) -> None:
         xx, yy = np.meshgrid(np.linspace(0.4, 13.6, 28), np.linspace(0.4, 9.6, 20))
@@ -56,7 +57,10 @@ class Room:
         return rssi
 
     def loss(self, positions: np.ndarray) -> np.ndarray:
-        return 1.0 - sigmoid((self.signal(positions) - self.target) / 3.0).mean(axis=1)
+        signal = self.signal(positions)
+        if self.coverage_only:
+            return 1.0 - (signal >= self.target).mean(axis=1)
+        return 1.0 - sigmoid((signal - self.target) / 3.0).mean(axis=1)
 
     def metrics(self, position: np.ndarray) -> dict:
         signal = self.signal(position)[0]
@@ -67,7 +71,8 @@ class Room:
 WALLS = [(4.5, 0, 4.5, 7.5, 9), (9, 2.5, 9, 10, 9),
          (4.5, 5, 9, 5, 7), (0, 7.5, 4.5, 7.5, 7)]
 ROOMS = [Room("Open room", [], -67), Room("Partitioned home", WALLS, -67),
-         Room("Stronger signal target", WALLS, -57)]
+         Room("Stronger signal target", WALLS, -57),
+         Room("Coverage count objective", WALLS, -57, coverage_only=True)]
 
 
 def clip(position: np.ndarray) -> np.ndarray:
@@ -149,6 +154,7 @@ def run(output: Path, seeds: int, featured_seed: int = FEATURED_SEED, budget: in
         grid = np.column_stack([xx.ravel(), yy.ravel()])
         scores = 100 * (1 - room.loss(grid))
         rounds.append({"name": room.name, "walls": room.walls, "target_dbm": room.target,
+                       "objective": "coverage_count" if room.coverage_only else "smooth_service",
                        "gd": gd, "evolution": es, "start": room.metrics(START),
                        "surface": {"width": 57, "height": 41, "scores": scores.tolist()},
                        "grid_best": state(room, grid[np.argmax(scores)], len(grid)),

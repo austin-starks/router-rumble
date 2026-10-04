@@ -4,9 +4,9 @@ Where should you put a Wi-Fi router when the signal barely reaches the bedroom?
 
 Router Rumble explores that question with a small Python simulation. Gradient descent and an evolutionary algorithm search the same home, starting from the same router position. The animation shows how the signal changes as they search, including the point where gradient descent settles while the population finds a better position across the wall.
 
-![Router Rumble: local search versus evolution](assets/race.gif)
+![Router Rumble: local search versus evolution](assets/race-3d.gif)
 
-Both methods get 1,200 signal evaluations. The replay uses their recorded positions and the signal values calculated by Python.
+Both methods get 1,200 signal evaluations. The replay uses their recorded positions and the signal values calculated by Python. It interpolates between positions to make the motion smooth; those intermediate positions are not additional optimizer evaluations. The counters and signal maps use the recorded states.
 
 ## Run it yourself
 
@@ -32,17 +32,20 @@ If you already have Python and NumPy installed, `python run_demo.py` works too. 
 
 With the stronger signal target, the starting router serves 100 of the 560 sampled locations, or about 18%. Gradient descent finishes at 28% coverage. Evolution, using seed 7, finishes at 203 locations, or about 36%.
 
-Coverage means that a sampled location meets the signal target. It does not measure internet speed. Both optimizers maximize a smooth service score, which is related to coverage but is a different metric.
+Coverage means that a sampled location meets the signal target. It does not measure internet speed. The first three experiments maximize a smooth service score, which is related to coverage but is a different metric. The fourth counts covered locations directly.
 
 | Scenario | Start score | Gradient descent | Evolution | Seeds beating GD |
 |---|---:|---:|---:|---:|
 | Open room | 80.9 | 96.5 | 96.5 | 0 / 20 |
 | Partitioned home | 37.1 | 63.6 | 67.1 | 20 / 20 |
 | Stronger signal target | 18.1 | 28.0 | 35.9 | 20 / 20 |
+| Coverage count objective | 17.9 | 17.9 | 37.1 | 20 / 20 |
 
 In the open room, both methods reach the same rounded score. The difference appears when walls and the signal target create competing good positions. These results show how this particular local search can get stuck; they do not establish that evolution is always better.
 
-Seed 7 was chosen before running the experiment. The audit includes seeds 0 through 19, and counts a win when evolution's final service score exceeds gradient descent's by more than 0.1 points.
+Seed 7 was chosen before running the experiment. The audit includes seeds 0 through 19, and counts a win when evolution's final objective score exceeds gradient descent's by more than 0.1 points.
+
+The video's third round optimizes the coverage count directly instead of the smooth service score. All four gradient probes at the start cover the same 100 receivers, so the local gradient is exactly zero and gradient descent never moves. Evolution reaches 208 receivers, or 37% coverage, with seed 7. The flat steps make this a poor objective for finite-difference gradient descent. In this row, the score equals coverage.
 
 ## How the search works
 
@@ -54,11 +57,11 @@ Every search call counts toward the budget, including gradient probes, trial ste
 
 ## How the signal model works
 
-The simulated home measures 14 × 10 metres and contains 560 sampled receivers. Four walls impose declared penalties of 7 or 9 dB. The furniture in the animation is decorative and does not affect the calculation.
+The simulated home measures 14 × 10 metres and contains 560 sampled receivers. Four walls impose declared penalties of 7 or 9 dB. The small router icon marks its position; only distance and walls affect the signal calculation.
 
-Distance reduces signal according to `-40 - 24*log10(max(distance, 1))` dBm. Wall-crossing masks are softened over 0.18 m so the optimizer has a smooth objective. The service score averages `sigmoid((RSSI-target)/3) × 100` across receivers, while coverage counts receivers at or above the target.
+Distance reduces signal according to `-40 - 24*log10(max(distance, 1))` dBm. Wall-crossing masks are softened over 0.18 m so the optimizer has a smooth objective. The service score averages `sigmoid((RSSI-target)/3) × 100` across receivers, while coverage counts receivers at or above the target. The animation displays the loss minimized in each round: `1 - service_score / 100` for the smooth objective, or `1 - coverage / 100` for the coverage count. A lower number is better. Each surface uses its own height and color range to make its shape visible; the loss counters provide the numerical comparison.
 
-The two wall scenarios use the same geometry. The stronger-signal scenario changes the target from −67 to −57 dBm.
+The wall scenarios use the same geometry. The stronger-signal scenario changes the target from −67 to −57 dBm. The coverage-count scenario retains −57 dBm and changes the objective to `1 - mean(RSSI >= target)`.
 
 ## Change the experiment
 
