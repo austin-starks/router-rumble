@@ -8,9 +8,11 @@ from experiment import ROOMS
 
 ROOT = Path(__file__).resolve().parent
 VIDEO = ROOT.parents[1] / 'Videos/tiktok/gradient-vs-evolution/edit'
-DURATION = 12
+DURATION = 11.5
 recorded = json.loads((ROOT / 'results/results.json').read_text())
 for room, result in zip(ROOMS, recorded['rounds']):
+    probes = np.array([[1.03, 1], [.97, 1], [1, 1.03], [1, .97]])
+    result['local_probes'] = [round(room.metrics(point)['coverage'] * 5.6) for point in probes]
     for method in ('gd', 'evolution'):
         for state in result[method]:
             signal = room.signal(np.array(state['position']))[0]

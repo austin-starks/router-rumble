@@ -4,9 +4,9 @@ Where should you put a Wi-Fi router when the signal barely reaches the bedroom?
 
 Router Rumble explores that question with a small Python simulation. It compares gradient descent’s local steps with NSGA-II’s population search in the same home. The replay focuses on a coverage-count objective. Gradient descent tests four nearby positions, but each covers the same 100 locations. With no local slope to follow, it stays still. NSGA-II samples across the room and reaches 209 locations.
 
-![Router Rumble: gradient descent versus NSGA-II](assets/nsga2-coverage-race.gif)
+![Router Rumble: gradient descent versus NSGA-II](assets/nsga2-race.gif)
 
-Both methods get 1,200 signal evaluations. The replay uses their recorded positions and the signal values calculated by Python. It interpolates between positions to make the motion smooth; those intermediate positions are not additional optimizer evaluations. The coverage counts and signal maps use the recorded states. The pink trail connects the best position found so far, not a lineage of offspring. The search uses NSGA-II from pymoo, with crossover and polynomial mutation.
+Both methods get 1,200 signal evaluations. The replay uses their recorded positions and the signal values calculated by Python. It interpolates between positions to make the motion smooth; those intermediate positions are not additional optimizer evaluations. The coverage counts and signal maps use the recorded states. The opening panel magnifies the four local probes before the population search plays; its timing is an explanation, not a measurement of runtime. The pink trail connects the best position found so far, not a lineage of offspring. The search uses NSGA-II from pymoo, with crossover and polynomial mutation.
 
 ## Run it yourself
 
